@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Shopping Agent Service
+  agent:
+    build:
+      context: .
+      dockerfile: agent-service/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=true
+      - MERCHANT_BASE_URL=http://merchant:8001
+      - MERCHANT_NAME=Mock Merchant Store
+      - TAP_AGENT_ID=shopping-agent-001
+      - TAP_AGENT_KEYID=https://registry.visa.com/agents/shopping-agent-001
+      - AUTH_CALLBACK_URL=http://localhost:8000/api/auth/callback
+    env_file:
+      - config/.env
+    volumes:
+      - ./shared:/app/shared
+      - ./config/keys:/app/config/keys:ro
+    depends_on:
+      - merchant
+    networks:
+      - visa-agent-network
+
+  # Mock Merchant Service
+  merchant:
+    build:
+      context: .
+      dockerfile: mock-merchant/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - DEBUG=true
+    env_file:
+      - config/.env
+    volumes:
+      - ./shared:/app/shared
+      - ./config/keys:/app/config/keys:ro
+    networks:
+      - visa-agent-network
+
+networks:
+  visa-agent-network:
+    driver: bridge
