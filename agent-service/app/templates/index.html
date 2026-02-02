@@ -8,10 +8,13 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         .chat-container {
-            height: calc(100vh - 200px);
+            height: calc(100vh - 280px);
+        }
+        .log-container {
+            height: calc(100vh - 180px);
         }
         .message-bubble {
-            max-width: 80%;
+            max-width: 85%;
         }
         .typing-indicator span {
             animation: typing 1.4s infinite both;
@@ -28,12 +31,25 @@
         .product-card:hover {
             transform: scale(1.02);
         }
+        .log-entry {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 11px;
+        }
+        .log-request { border-left: 3px solid #3b82f6; }
+        .log-response { border-left: 3px solid #10b981; }
+        .log-error { border-left: 3px solid #ef4444; }
+        .log-info { border-left: 3px solid #8b5cf6; }
+        .json-key { color: #9333ea; }
+        .json-string { color: #059669; }
+        .json-number { color: #2563eb; }
+        .json-boolean { color: #dc2626; }
+        pre { white-space: pre-wrap; word-break: break-all; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
     <!-- Header -->
     <header class="bg-white shadow-sm">
-        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="max-w-full mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,6 +69,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                     </svg>
                 </a>
+                <button id="toggleLogPanel" class="px-3 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-700 flex items-center space-x-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                    <span>API Logs</span>
+                </button>
                 <button id="newChatBtn" class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg">
                     New Chat
                 </button>
@@ -60,91 +82,134 @@
         </div>
     </header>
 
-    <!-- Main Chat Area -->
-    <main class="max-w-4xl mx-auto px-4 py-6">
-        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <!-- Chat Messages -->
-            <div id="chatContainer" class="chat-container overflow-y-auto p-6 space-y-4">
-                <!-- Welcome Message -->
-                <div class="flex items-start space-x-3">
-                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
+    <!-- Main Content -->
+    <div class="flex h-[calc(100vh-64px)]">
+        <!-- Chat Panel -->
+        <main id="chatPanel" class="flex-1 p-4 transition-all duration-300">
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden h-full flex flex-col">
+                <!-- Chat Messages -->
+                <div id="chatContainer" class="chat-container overflow-y-auto p-6 space-y-4 flex-1">
+                    <!-- Welcome Message -->
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </div>
+                        <div class="message-bubble bg-gray-100 rounded-2xl rounded-tl-none px-4 py-3">
+                            <p class="text-gray-800">
+                                Hi! I'm your AI Shopping Assistant. I can help you:
+                            </p>
+                            <ul class="mt-2 space-y-1 text-gray-700">
+                                <li>🔍 <strong>Search</strong> for products</li>
+                                <li>🛒 <strong>Add items</strong> to your cart</li>
+                                <li>💳 <strong>Checkout</strong> securely with Visa</li>
+                            </ul>
+                            <p class="mt-2 text-gray-600">
+                                Try saying "Search for headphones" or "Help" for more options!
+                            </p>
+                        </div>
                     </div>
-                    <div class="message-bubble bg-gray-100 rounded-2xl rounded-tl-none px-4 py-3">
-                        <p class="text-gray-800">
-                            Hi! I'm your AI Shopping Assistant. I can help you:
-                        </p>
-                        <ul class="mt-2 space-y-1 text-gray-700">
-                            <li>🔍 <strong>Search</strong> for products</li>
-                            <li>🛒 <strong>Add items</strong> to your cart</li>
-                            <li>💳 <strong>Checkout</strong> securely with Visa</li>
-                        </ul>
-                        <p class="mt-2 text-gray-600">
-                            Try saying "Search for headphones" or "Help" for more options!
-                        </p>
+                </div>
+
+                <!-- Product Results Panel (shown when searching) -->
+                <div id="productsPanel" class="hidden border-t bg-gray-50 p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-gray-700">Search Results</h3>
+                        <button id="closeProducts" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="productsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="border-t bg-gray-50 p-4">
+                    <div class="flex items-center space-x-3">
+                        <input type="text" id="messageInput"
+                               placeholder="Type your message..."
+                               class="flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                               onkeypress="if(event.key === 'Enter') sendMessage()">
+                        <button id="sendBtn" onclick="sendMessage()"
+                                class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center space-x-2">
+                            <span>Send</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Quick Actions -->
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button onclick="sendQuickMessage('Search for headphones')"
+                                class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
+                            🔍 Headphones
+                        </button>
+                        <button onclick="sendQuickMessage('Show my cart')"
+                                class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
+                            🛒 View Cart
+                        </button>
+                        <button onclick="sendQuickMessage('Checkout')"
+                                class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
+                            💳 Checkout
+                        </button>
+                        <button onclick="sendQuickMessage('Help')"
+                                class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200">
+                            ❓ Help
+                        </button>
+                    </div>
+                    <!-- Session Info -->
+                    <div class="mt-2 text-center text-xs text-gray-400">
+                        Session: <span id="sessionId">Starting...</span>
                     </div>
                 </div>
             </div>
+        </main>
 
-            <!-- Product Results Panel (shown when searching) -->
-            <div id="productsPanel" class="hidden border-t bg-gray-50 p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-semibold text-gray-700">Search Results</h3>
-                    <button id="closeProducts" class="text-gray-400 hover:text-gray-600">
+        <!-- API Log Panel -->
+        <aside id="logPanel" class="w-[500px] bg-gray-900 text-gray-100 p-4 overflow-hidden flex flex-col transition-all duration-300">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-semibold flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                    <span>API Calls & Logs</span>
+                </h2>
+                <div class="flex items-center space-x-2">
+                    <button id="clearLogs" class="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded">Clear</button>
+                    <button id="closeLogPanel" class="text-gray-400 hover:text-white">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                     </button>
                 </div>
-                <div id="productsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <!-- Products will be loaded here -->
-                </div>
             </div>
 
-            <!-- Input Area -->
-            <div class="border-t bg-gray-50 p-4">
-                <div class="flex items-center space-x-3">
-                    <input type="text" id="messageInput"
-                           placeholder="Type your message..."
-                           class="flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                           onkeypress="if(event.key === 'Enter') sendMessage()">
-                    <button id="sendBtn" onclick="sendMessage()"
-                            class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center space-x-2">
-                        <span>Send</span>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                        </svg>
-                    </button>
-                </div>
-                <!-- Quick Actions -->
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <button onclick="sendQuickMessage('Search for headphones')"
-                            class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
-                        🔍 Headphones
-                    </button>
-                    <button onclick="sendQuickMessage('Show my cart')"
-                            class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
-                        🛒 View Cart
-                    </button>
-                    <button onclick="sendQuickMessage('Checkout')"
-                            class="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
-                        💳 Checkout
-                    </button>
-                    <button onclick="sendQuickMessage('Help')"
-                            class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200">
-                        ❓ Help
-                    </button>
+            <!-- Filter Tabs -->
+            <div class="flex space-x-1 mb-3">
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-700 text-white" data-filter="all">All</button>
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:bg-gray-700" data-filter="request">Requests</button>
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:bg-gray-700" data-filter="response">Responses</button>
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:bg-gray-700" data-filter="info">Logs</button>
+            </div>
+
+            <!-- Log Entries -->
+            <div id="logContainer" class="log-container overflow-y-auto space-y-2 flex-1">
+                <div class="log-entry log-info bg-gray-800 rounded p-2 pl-3">
+                    <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+                        <span class="flex items-center space-x-1">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                            <span>SYSTEM</span>
+                        </span>
+                        <span id="logStartTime"></span>
+                    </div>
+                    <div class="text-gray-300">Agent service initialized. Ready for requests.</div>
                 </div>
             </div>
-        </div>
-
-        <!-- Session Info -->
-        <div class="mt-4 text-center text-sm text-gray-500">
-            Session: <span id="sessionId">Starting...</span>
-        </div>
-    </main>
+        </aside>
+    </div>
 
     <!-- Auth Popup Overlay -->
     <div id="authOverlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
@@ -159,6 +224,8 @@
         // State
         let sessionId = null;
         let authWindow = null;
+        let logFilter = 'all';
+        let logPanelVisible = true;
 
         // API Base
         const API_BASE = '';
@@ -169,6 +236,7 @@
             if (sessionId) {
                 document.getElementById('sessionId').textContent = sessionId.substring(0, 8) + '...';
             }
+            document.getElementById('logStartTime').textContent = new Date().toLocaleTimeString();
             setupEventListeners();
         });
 
@@ -177,9 +245,157 @@
             document.getElementById('closeProducts').addEventListener('click', () => {
                 document.getElementById('productsPanel').classList.add('hidden');
             });
+            document.getElementById('toggleLogPanel').addEventListener('click', toggleLogPanel);
+            document.getElementById('closeLogPanel').addEventListener('click', toggleLogPanel);
+            document.getElementById('clearLogs').addEventListener('click', clearLogs);
 
-            // Listen for auth callback messages
+            // Log filter buttons
+            document.querySelectorAll('.log-filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.log-filter-btn').forEach(b => {
+                        b.classList.remove('bg-gray-700', 'text-white');
+                        b.classList.add('bg-gray-800', 'text-gray-400');
+                    });
+                    e.target.classList.remove('bg-gray-800', 'text-gray-400');
+                    e.target.classList.add('bg-gray-700', 'text-white');
+                    logFilter = e.target.dataset.filter;
+                    filterLogs();
+                });
+            });
+
             window.addEventListener('message', handleAuthCallback);
+        }
+
+        function toggleLogPanel() {
+            const logPanel = document.getElementById('logPanel');
+            const chatPanel = document.getElementById('chatPanel');
+            logPanelVisible = !logPanelVisible;
+
+            if (logPanelVisible) {
+                logPanel.classList.remove('w-0', 'p-0', 'overflow-hidden');
+                logPanel.classList.add('w-[500px]', 'p-4');
+            } else {
+                logPanel.classList.remove('w-[500px]', 'p-4');
+                logPanel.classList.add('w-0', 'p-0', 'overflow-hidden');
+            }
+        }
+
+        function clearLogs() {
+            const container = document.getElementById('logContainer');
+            container.innerHTML = `
+                <div class="log-entry log-info bg-gray-800 rounded p-2 pl-3">
+                    <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+                        <span class="flex items-center space-x-1">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                            <span>SYSTEM</span>
+                        </span>
+                        <span>${new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div class="text-gray-300">Logs cleared.</div>
+                </div>
+            `;
+        }
+
+        function filterLogs() {
+            document.querySelectorAll('.log-entry').forEach(entry => {
+                if (logFilter === 'all') {
+                    entry.classList.remove('hidden');
+                } else if (entry.classList.contains(`log-${logFilter}`)) {
+                    entry.classList.remove('hidden');
+                } else {
+                    entry.classList.add('hidden');
+                }
+            });
+        }
+
+        function addLogEntry(type, from, to, method, url, data, headers = null) {
+            const container = document.getElementById('logContainer');
+            const time = new Date().toLocaleTimeString();
+
+            const typeColors = {
+                request: { dot: 'bg-blue-500', label: 'REQUEST', border: 'log-request' },
+                response: { dot: 'bg-green-500', label: 'RESPONSE', border: 'log-response' },
+                error: { dot: 'bg-red-500', label: 'ERROR', border: 'log-error' },
+                info: { dot: 'bg-purple-500', label: 'INFO', border: 'log-info' }
+            };
+
+            const config = typeColors[type] || typeColors.info;
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${config.border} bg-gray-800 rounded p-2 pl-3`;
+
+            let headersHtml = '';
+            if (headers && Object.keys(headers).length > 0) {
+                const importantHeaders = ['Signature', 'Signature-Input', 'Content-Type', 'Authorization'];
+                const filteredHeaders = {};
+                for (const [key, value] of Object.entries(headers)) {
+                    if (importantHeaders.some(h => key.toLowerCase().includes(h.toLowerCase()))) {
+                        filteredHeaders[key] = value.length > 100 ? value.substring(0, 100) + '...' : value;
+                    }
+                }
+                if (Object.keys(filteredHeaders).length > 0) {
+                    headersHtml = `
+                        <div class="mt-2 text-xs">
+                            <div class="text-gray-500 mb-1">Headers:</div>
+                            <pre class="text-gray-400 bg-gray-900 rounded p-1 overflow-x-auto">${syntaxHighlight(filteredHeaders)}</pre>
+                        </div>
+                    `;
+                }
+            }
+
+            entry.innerHTML = `
+                <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+                    <span class="flex items-center space-x-1">
+                        <span class="w-2 h-2 ${config.dot} rounded-full"></span>
+                        <span>${config.label}</span>
+                    </span>
+                    <span>${time}</span>
+                </div>
+                <div class="flex items-center space-x-2 text-xs mb-1">
+                    <span class="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300">${from}</span>
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                    </svg>
+                    <span class="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300">${to}</span>
+                </div>
+                ${method && url ? `
+                    <div class="text-xs text-gray-300 mb-1">
+                        <span class="font-semibold ${method === 'GET' ? 'text-green-400' : 'text-yellow-400'}">${method}</span>
+                        <span class="text-gray-400 ml-1">${url}</span>
+                    </div>
+                ` : ''}
+                ${headersHtml}
+                ${data ? `
+                    <div class="mt-1">
+                        <pre class="text-xs bg-gray-900 rounded p-2 overflow-x-auto max-h-32">${syntaxHighlight(data)}</pre>
+                    </div>
+                ` : ''}
+            `;
+
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            filterLogs();
+        }
+
+        function syntaxHighlight(obj) {
+            if (typeof obj !== 'string') {
+                obj = JSON.stringify(obj, null, 2);
+            }
+            return obj.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'text-blue-400'; // number
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'text-purple-400'; // key
+                    } else {
+                        cls = 'text-green-400'; // string
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'text-red-400'; // boolean
+                } else if (/null/.test(match)) {
+                    cls = 'text-gray-500'; // null
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
         }
 
         function startNewChat() {
@@ -199,6 +415,7 @@
                 </div>
             `;
             document.getElementById('productsPanel').classList.add('hidden');
+            addLogEntry('info', 'User', 'Agent', null, null, 'New chat session started');
         }
 
         function sendQuickMessage(message) {
@@ -211,41 +428,50 @@
             const message = input.value.trim();
             if (!message) return;
 
-            // Clear input
             input.value = '';
-
-            // Add user message to chat
             addMessage('user', message);
-
-            // Show typing indicator
             showTypingIndicator();
+
+            const requestBody = {
+                message: message,
+                session_id: sessionId
+            };
+
+            // Log the request
+            addLogEntry('request', 'Browser', 'Agent API', 'POST', '/api/chat', requestBody);
 
             try {
                 const response = await fetch(`${API_BASE}/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: message,
-                        session_id: sessionId
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const data = await response.json();
 
-                // Update session ID
+                // Log the response
+                addLogEntry('response', 'Agent API', 'Browser', null, null, data);
+
+                // Log internal agent actions if available
+                if (data.action_type) {
+                    addLogEntry('info', 'Agent', 'Merchant API', data.action_type.toUpperCase(),
+                        data.action_type === 'search' ? '/api/products' :
+                        data.action_type === 'add_to_cart' ? '/api/cart' :
+                        data.action_type === 'checkout' ? '/api/checkout' : '',
+                        { action: data.action_type, data: data.data ? '(see response)' : null },
+                        { 'Signature': '[TAP Signature]', 'Signature-Input': '[RFC 9421 params]' }
+                    );
+                }
+
                 if (data.session_id && data.session_id !== sessionId) {
                     sessionId = data.session_id;
                     localStorage.setItem('agentSessionId', sessionId);
                     document.getElementById('sessionId').textContent = sessionId.substring(0, 8) + '...';
                 }
 
-                // Remove typing indicator
                 hideTypingIndicator();
-
-                // Add assistant message
                 addMessage('assistant', data.message);
 
-                // Handle special actions
                 if (data.action_type === 'search' && data.data?.products) {
                     showProducts(data.data.products);
                 }
@@ -257,7 +483,7 @@
             } catch (error) {
                 hideTypingIndicator();
                 addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
-                console.error('Chat error:', error);
+                addLogEntry('error', 'Agent API', 'Browser', null, null, { error: error.message });
             }
         }
 
@@ -268,18 +494,15 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
 
-            // Avatar
             const avatar = document.createElement('div');
             avatar.className = `w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-gray-200' : 'bg-blue-600'}`;
             avatar.innerHTML = isUser
                 ? '<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>'
                 : '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>';
 
-            // Message bubble
             const bubble = document.createElement('div');
             bubble.className = `message-bubble rounded-2xl px-4 py-3 ${isUser ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-gray-100 text-gray-800 rounded-tl-none'}`;
 
-            // Parse markdown for assistant messages
             if (isUser) {
                 bubble.textContent = content;
             } else {
@@ -289,8 +512,6 @@
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(bubble);
             container.appendChild(messageDiv);
-
-            // Scroll to bottom
             container.scrollTop = container.scrollHeight;
         }
 
@@ -358,8 +579,8 @@
         function openAuthPopup(url) {
             document.getElementById('authOverlay').classList.remove('hidden');
             authWindow = window.open(url, 'auth', 'width=500,height=600,left=200,top=100');
+            addLogEntry('info', 'Agent', 'Visa Auth', 'REDIRECT', url, { action: 'Passkey authentication' });
 
-            // Check if popup was blocked
             if (!authWindow) {
                 document.getElementById('authOverlay').classList.add('hidden');
                 addMessage('assistant', 'Please allow popups to complete authentication, then try again.');
@@ -377,8 +598,10 @@
 
                 if (event.data.status === 'success') {
                     addMessage('assistant', '✅ Authentication successful! You can now continue with your purchase.');
+                    addLogEntry('response', 'Visa Auth', 'Agent', null, null, { status: 'success', ...event.data });
                 } else {
                     addMessage('assistant', '❌ Authentication failed. Please try again.');
+                    addLogEntry('error', 'Visa Auth', 'Agent', null, null, { status: 'failed', ...event.data });
                 }
             }
         }

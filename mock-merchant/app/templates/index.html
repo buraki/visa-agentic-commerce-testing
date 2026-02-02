@@ -10,17 +10,36 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
+        .log-container {
+            height: calc(100vh - 140px);
+        }
+        .log-entry {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 11px;
+        }
+        .log-request { border-left: 3px solid #3b82f6; }
+        .log-response { border-left: 3px solid #10b981; }
+        .log-error { border-left: 3px solid #ef4444; }
+        .log-info { border-left: 3px solid #8b5cf6; }
+        .log-tap { border-left: 3px solid #f59e0b; }
+        pre { white-space: pre-wrap; word-break: break-all; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Header -->
     <header class="bg-white shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="max-w-full mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center space-x-4">
                 <h1 class="text-2xl font-bold text-blue-600">Mock Merchant</h1>
                 <span class="text-sm text-gray-500">Visa Agentic Commerce Testing</span>
             </div>
             <div class="flex items-center space-x-4">
+                <button id="toggleLogPanel" class="px-3 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-700 flex items-center space-x-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                    <span>API Logs</span>
+                </button>
                 <button id="cartBtn" class="relative p-2 text-gray-600 hover:text-blue-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -32,35 +51,79 @@
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Search and Filters -->
-        <div class="mb-8 flex flex-wrap gap-4 items-center">
-            <input type="text" id="searchInput" placeholder="Search products..."
-                   class="flex-1 min-w-64 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            <select id="categoryFilter" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                <option value="">All Categories</option>
-            </select>
-            <div class="flex items-center space-x-2">
-                <input type="number" id="minPrice" placeholder="Min $" class="w-24 px-2 py-2 border rounded-lg">
-                <span>-</span>
-                <input type="number" id="maxPrice" placeholder="Max $" class="w-24 px-2 py-2 border rounded-lg">
+    <div class="flex h-[calc(100vh-56px)]">
+        <!-- Store Panel -->
+        <main id="storePanel" class="flex-1 p-4 overflow-y-auto transition-all duration-300">
+            <!-- Search and Filters -->
+            <div class="mb-6 flex flex-wrap gap-4 items-center bg-white p-4 rounded-lg shadow-sm">
+                <input type="text" id="searchInput" placeholder="Search products..."
+                       class="flex-1 min-w-48 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <select id="categoryFilter" class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Categories</option>
+                </select>
+                <div class="flex items-center space-x-2">
+                    <input type="number" id="minPrice" placeholder="Min $" class="w-20 px-2 py-2 border rounded-lg">
+                    <span>-</span>
+                    <input type="number" id="maxPrice" placeholder="Max $" class="w-20 px-2 py-2 border rounded-lg">
+                </div>
+                <button id="searchBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Search
+                </button>
             </div>
-            <button id="searchBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Search
-            </button>
-        </div>
 
-        <!-- Products Grid -->
-        <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <!-- Products will be loaded here -->
-        </div>
+            <!-- Products Grid -->
+            <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            </div>
 
-        <!-- Loading State -->
-        <div id="loadingState" class="text-center py-12 hidden">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="mt-4 text-gray-600">Loading products...</p>
-        </div>
-    </main>
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-12 hidden">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Loading products...</p>
+            </div>
+        </main>
+
+        <!-- API Log Panel -->
+        <aside id="logPanel" class="w-[500px] bg-gray-900 text-gray-100 p-4 overflow-hidden flex flex-col transition-all duration-300">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-semibold flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                    <span>Incoming Requests</span>
+                </h2>
+                <div class="flex items-center space-x-2">
+                    <button id="clearLogs" class="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded">Clear</button>
+                    <button id="closeLogPanel" class="text-gray-400 hover:text-white">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="flex space-x-1 mb-3">
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-700 text-white" data-filter="all">All</button>
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:bg-gray-700" data-filter="request">Requests</button>
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:bg-gray-700" data-filter="tap">TAP Verified</button>
+                <button class="log-filter-btn px-3 py-1 text-xs rounded bg-gray-800 text-gray-400 hover:bg-gray-700" data-filter="response">Responses</button>
+            </div>
+
+            <!-- Log Entries -->
+            <div id="logContainer" class="log-container overflow-y-auto space-y-2 flex-1">
+                <div class="log-entry log-info bg-gray-800 rounded p-2 pl-3">
+                    <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+                        <span class="flex items-center space-x-1">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                            <span>SYSTEM</span>
+                        </span>
+                        <span id="logStartTime"></span>
+                    </div>
+                    <div class="text-gray-300">Merchant server ready. Waiting for requests...</div>
+                </div>
+            </div>
+        </aside>
+    </div>
 
     <!-- Cart Sidebar -->
     <div id="cartSidebar" class="fixed inset-y-0 right-0 w-96 bg-white shadow-xl transform translate-x-full transition-transform z-50">
@@ -73,7 +136,6 @@
             </button>
         </div>
         <div id="cartItems" class="p-4 flex-1 overflow-y-auto" style="max-height: calc(100vh - 200px);">
-            <!-- Cart items will be loaded here -->
         </div>
         <div class="p-4 border-t">
             <div class="flex justify-between mb-2">
@@ -101,18 +163,21 @@
         // State
         let cartId = localStorage.getItem('cartId');
         let cart = { items: [], subtotal: 0, tax: 0, total: 0 };
+        let logFilter = 'all';
+        let logPanelVisible = true;
 
         // API Base URL
         const API_BASE = '';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('logStartTime').textContent = new Date().toLocaleTimeString();
+            setupEventListeners();
             await loadCategories();
             await loadProducts();
             if (cartId) {
                 await loadCart();
             }
-            setupEventListeners();
         });
 
         function setupEventListeners() {
@@ -124,7 +189,208 @@
             document.getElementById('closeCart').addEventListener('click', closeCart);
             document.getElementById('overlay').addEventListener('click', closeCart);
             document.getElementById('checkoutBtn').addEventListener('click', goToCheckout);
+            document.getElementById('toggleLogPanel').addEventListener('click', toggleLogPanel);
+            document.getElementById('closeLogPanel').addEventListener('click', toggleLogPanel);
+            document.getElementById('clearLogs').addEventListener('click', clearLogs);
+
+            // Log filter buttons
+            document.querySelectorAll('.log-filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.log-filter-btn').forEach(b => {
+                        b.classList.remove('bg-gray-700', 'text-white');
+                        b.classList.add('bg-gray-800', 'text-gray-400');
+                    });
+                    e.target.classList.remove('bg-gray-800', 'text-gray-400');
+                    e.target.classList.add('bg-gray-700', 'text-white');
+                    logFilter = e.target.dataset.filter;
+                    filterLogs();
+                });
+            });
         }
+
+        function toggleLogPanel() {
+            const logPanel = document.getElementById('logPanel');
+            logPanelVisible = !logPanelVisible;
+
+            if (logPanelVisible) {
+                logPanel.classList.remove('w-0', 'p-0', 'overflow-hidden');
+                logPanel.classList.add('w-[500px]', 'p-4');
+            } else {
+                logPanel.classList.remove('w-[500px]', 'p-4');
+                logPanel.classList.add('w-0', 'p-0', 'overflow-hidden');
+            }
+        }
+
+        function clearLogs() {
+            const container = document.getElementById('logContainer');
+            container.innerHTML = `
+                <div class="log-entry log-info bg-gray-800 rounded p-2 pl-3">
+                    <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+                        <span class="flex items-center space-x-1">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                            <span>SYSTEM</span>
+                        </span>
+                        <span>${new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div class="text-gray-300">Logs cleared.</div>
+                </div>
+            `;
+        }
+
+        function filterLogs() {
+            document.querySelectorAll('.log-entry').forEach(entry => {
+                if (logFilter === 'all') {
+                    entry.classList.remove('hidden');
+                } else if (entry.classList.contains(`log-${logFilter}`)) {
+                    entry.classList.remove('hidden');
+                } else {
+                    entry.classList.add('hidden');
+                }
+            });
+        }
+
+        function addLogEntry(type, from, to, method, url, data, tapInfo = null) {
+            const container = document.getElementById('logContainer');
+            const time = new Date().toLocaleTimeString();
+
+            const typeColors = {
+                request: { dot: 'bg-blue-500', label: 'REQUEST', border: 'log-request' },
+                response: { dot: 'bg-green-500', label: 'RESPONSE', border: 'log-response' },
+                error: { dot: 'bg-red-500', label: 'ERROR', border: 'log-error' },
+                info: { dot: 'bg-purple-500', label: 'INFO', border: 'log-info' },
+                tap: { dot: 'bg-yellow-500', label: 'TAP VERIFIED', border: 'log-tap' }
+            };
+
+            const config = typeColors[type] || typeColors.info;
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${config.border} bg-gray-800 rounded p-2 pl-3`;
+
+            let tapHtml = '';
+            if (tapInfo) {
+                tapHtml = `
+                    <div class="mt-2 p-2 bg-yellow-900/30 rounded border border-yellow-700/50">
+                        <div class="flex items-center space-x-1 text-yellow-400 text-xs mb-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                            <span>TAP Signature Verified</span>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            <div>Agent: <span class="text-yellow-300">${tapInfo.agent || 'Unknown'}</span></div>
+                            <div>Type: <span class="text-yellow-300">${tapInfo.interactionType || 'browsing'}</span></div>
+                            ${tapInfo.keyid ? `<div class="truncate">KeyID: <span class="text-gray-500">${tapInfo.keyid}</span></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            entry.innerHTML = `
+                <div class="flex items-center justify-between text-gray-400 text-xs mb-1">
+                    <span class="flex items-center space-x-1">
+                        <span class="w-2 h-2 ${config.dot} rounded-full"></span>
+                        <span>${config.label}</span>
+                    </span>
+                    <span>${time}</span>
+                </div>
+                <div class="flex items-center space-x-2 text-xs mb-1">
+                    <span class="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300">${from}</span>
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                    </svg>
+                    <span class="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300">${to}</span>
+                </div>
+                ${method && url ? `
+                    <div class="text-xs text-gray-300 mb-1">
+                        <span class="font-semibold ${method === 'GET' ? 'text-green-400' : method === 'POST' ? 'text-yellow-400' : method === 'DELETE' ? 'text-red-400' : 'text-blue-400'}">${method}</span>
+                        <span class="text-gray-400 ml-1">${url}</span>
+                    </div>
+                ` : ''}
+                ${tapHtml}
+                ${data ? `
+                    <div class="mt-1">
+                        <pre class="text-xs bg-gray-900 rounded p-2 overflow-x-auto max-h-32">${syntaxHighlight(data)}</pre>
+                    </div>
+                ` : ''}
+            `;
+
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            filterLogs();
+        }
+
+        function syntaxHighlight(obj) {
+            if (typeof obj !== 'string') {
+                obj = JSON.stringify(obj, null, 2);
+            }
+            return obj.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'text-blue-400';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'text-purple-400';
+                    } else {
+                        cls = 'text-green-400';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'text-red-400';
+                } else if (/null/.test(match)) {
+                    cls = 'text-gray-500';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // Wrap fetch to log requests
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            const url = args[0];
+            const options = args[1] || {};
+            const method = options.method || 'GET';
+
+            // Only log API calls
+            if (url.includes('/api/')) {
+                const requestData = options.body ? JSON.parse(options.body) : null;
+
+                // Simulate TAP info for agent requests (in real app, this comes from headers)
+                const isAgentRequest = requestData && (requestData.tap_signed || Math.random() > 0.7);
+                const tapInfo = isAgentRequest ? {
+                    agent: 'Shopping Agent',
+                    interactionType: url.includes('checkout') ? 'checkout' : 'browsing',
+                    keyid: 'https://registry.visa.com/agents/shopping-agent-001'
+                } : null;
+
+                addLogEntry(
+                    tapInfo ? 'tap' : 'request',
+                    tapInfo ? 'Agent' : 'Browser',
+                    'Merchant API',
+                    method,
+                    url,
+                    requestData,
+                    tapInfo
+                );
+            }
+
+            try {
+                const response = await originalFetch.apply(this, args);
+                const clonedResponse = response.clone();
+
+                if (url.includes('/api/')) {
+                    try {
+                        const data = await clonedResponse.json();
+                        addLogEntry('response', 'Merchant API', 'Client', null, null, data);
+                    } catch (e) {
+                        // Not JSON response
+                    }
+                }
+
+                return response;
+            } catch (error) {
+                if (url.includes('/api/')) {
+                    addLogEntry('error', 'Merchant API', 'Client', null, null, { error: error.message });
+                }
+                throw error;
+            }
+        };
 
         async function loadCategories() {
             try {
@@ -210,7 +476,6 @@
 
         async function addToCart(productId) {
             try {
-                // Create cart if needed
                 if (!cartId) {
                     const res = await fetch(`${API_BASE}/api/cart`, { method: 'POST' });
                     const data = await res.json();
@@ -218,7 +483,6 @@
                     localStorage.setItem('cartId', cartId);
                 }
 
-                // Add item
                 const res = await fetch(`${API_BASE}/api/cart/${cartId}/items`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -248,7 +512,6 @@
                     cart = data.cart;
                     updateCartUI();
                 } else {
-                    // Cart not found, clear local storage
                     localStorage.removeItem('cartId');
                     cartId = null;
                 }
@@ -330,13 +593,13 @@
         }
 
         function goToCheckout() {
-            // In a real app, this would redirect to checkout page
+            addLogEntry('info', 'User', 'Merchant', 'CHECKOUT', '/checkout', { cart_id: cartId, total: cart.total });
             alert(`Checkout for cart ${cartId}\nTotal: $${cart.total.toFixed(2)}\n\nIn production, this would integrate with Visa payment APIs.`);
         }
 
         function showNotification(message, type = 'success') {
             const notification = document.createElement('div');
-            notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'} shadow-lg z-50 animate-fade-in`;
+            notification.className = `fixed bottom-4 left-4 px-6 py-3 rounded-lg text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'} shadow-lg z-50`;
             notification.textContent = message;
             document.body.appendChild(notification);
             setTimeout(() => notification.remove(), 3000);
