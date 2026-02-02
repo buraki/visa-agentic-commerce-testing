@@ -143,17 +143,28 @@ class ShoppingAgent:
 
         try:
             # Simple intent matching (replace with LLM in production)
+            # Check for "add ... to cart" pattern first (higher priority)
+            import re
+            is_add_to_cart = (
+                "add to cart" in message_lower or
+                re.search(r'\badd\b.+\bto\s+(?:my\s+)?cart\b', message_lower) or
+                any(word in message_lower for word in ["buy ", "purchase "])
+            )
+
             if any(word in message_lower for word in ["search", "find", "looking for", "show me"]):
                 response = await self._handle_search(session, user_message)
 
-            elif any(word in message_lower for word in ["add to cart", "buy", "purchase", "get"]):
+            elif is_add_to_cart:
                 response = await self._handle_add_to_cart(session, user_message)
 
-            elif any(word in message_lower for word in ["cart", "basket", "what's in"]):
+            elif any(word in message_lower for word in ["view cart", "my cart", "show cart", "basket", "what's in"]):
                 response = await self._handle_view_cart(session)
 
             elif any(word in message_lower for word in ["remove", "delete"]):
                 response = await self._handle_remove_from_cart(session, user_message)
+
+            elif "mock checkout" in message_lower or "test checkout" in message_lower:
+                response = await self._handle_simple_checkout(session)
 
             elif any(word in message_lower for word in ["checkout", "pay", "complete order"]):
                 response = await self._handle_checkout(session, user_message)
@@ -238,10 +249,25 @@ class ShoppingAgent:
             cart_response = await self.merchant.create_cart()
             session.cart.cart_id = cart_response["cart"]["cart_id"]
 
-        # Try to find product (simplified - would use NLP/context in production)
-        # For now, search for mentioned product
+        # Extract product name from message
+        # Handle patterns like "Add X to cart", "buy X", "get X"
+        import re
+        query = message
+
+        # Pattern: "add X to cart" or "Add X to my cart"
+        add_pattern = re.search(r'add\s+(.+?)\s+to\s+(?:my\s+)?cart', message, re.IGNORECASE)
+        if add_pattern:
+            query = add_pattern.group(1)
+        else:
+            # Fallback: remove common prefixes
+            query = re.sub(r'^(add|buy|get|purchase)\s+', '', message, flags=re.IGNORECASE)
+            query = re.sub(r'\s+to\s+(?:my\s+)?cart$', '', query, flags=re.IGNORECASE)
+
+        query = query.strip()
+
+        # Try to find product
         search_results = await self.merchant.search_products(
-            query=message.replace("add to cart", "").replace("buy", "").strip(),
+            query=query,
             limit=1,
         )
 
@@ -382,14 +408,41 @@ class ShoppingAgent:
                 message="Your cart is empty! Add some products first.",
             )
 
+        # Get cart details for display
+        cart_response = await self.merchant.get_cart(session.cart.cart_id)
+        cart = cart_response["cart"]
+
         session.update_state(SessionState.CHECKOUT)
 
-        # Check if Visa is configured for tokenized payment
-        if self.visa and session.payment.card_enrolled:
-            return await self._handle_visa_checkout(session)
+        # Check if Visa is configured
+        if not self.visa:
+            # Visa not configured - show what would happen
+            return AgentResponse(
+                message=f"**Ready to Checkout**\n\n"
+                f"**Total:** ${cart['total']:.2f}\n\n"
+                "⚠️ **Visa API not configured**\n\n"
+                "To complete checkout with Visa Intelligent Commerce:\n"
+                "1. Add your Visa API credentials to `config/.env`\n"
+                "2. Say 'enroll my card' to register your Visa card\n"
+                "3. Then say 'checkout' to complete with Passkey authentication\n\n"
+                "For testing, say 'mock checkout' to simulate a purchase.",
+                action_type="checkout_pending",
+                data={"cart": cart, "visa_configured": False},
+            )
 
-        # Fall back to simple checkout (mock payment)
-        return await self._handle_simple_checkout(session)
+        # Visa configured but card not enrolled
+        if not session.payment.card_enrolled:
+            return AgentResponse(
+                message=f"**Ready to Checkout**\n\n"
+                f"**Total:** ${cart['total']:.2f}\n\n"
+                "To complete your purchase securely, please enroll your Visa card first.\n\n"
+                "Say **'enroll my card'** to set up secure Passkey authentication.",
+                action_type="checkout_pending",
+                data={"cart": cart, "card_enrolled": False},
+            )
+
+        # Visa configured and card enrolled - proceed with Visa checkout
+        return await self._handle_visa_checkout(session)
 
     async def _handle_simple_checkout(
         self,
